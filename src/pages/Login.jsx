@@ -85,26 +85,26 @@ const Login = () => {
       >
         {/* Branding Section */}
         <div className="text-center mb-8">
-          {/* <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center bg-white shadow">
+          <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-white rounded-2xl shadow-md overflow-hidden">
             <img
-              src="sks-logo.jpg"
-              alt="SKS Logo"
+              src="/logo.png"
+              alt="Vishwakarma Welding Logo"
               className="w-full h-full object-contain"
             />
-          </div> */}
+          </div>
 
           <h1
-            className="text-3xl font-bold mb-2"
+            className="text-2xl font-bold mb-1"
             style={{ color: themeColors.primary }}
           >
-            Search
+            Vishwakarma Welding
           </h1>
 
           <p
             className="text-sm"
             style={{ color: themeColors.textSecondary }}
           >
-           Admin Panel
+            Admin Panel
           </p>
         </div>
 

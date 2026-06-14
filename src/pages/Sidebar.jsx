@@ -108,16 +108,16 @@ const Sidebar = ({
           <div className="flex items-center">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mr-4 bg-white overflow-hidden">
               <img
-                src="sks-logo.jpg"
-                alt="Auction Here Logo"
-                className="w-full h-full object-cover"
+                src="/logo.png"
+                alt="Vishwakarma Welding Logo"
+                className="w-full h-full object-contain"
               />
             </div>
             <h1
               className="text-sm font-bold"
               style={{ color: themeColors.primary }}
             >
-              SKS Admin
+              Vishwakarma Welding
             </h1>
           </div>
           <button
@@ -173,7 +173,7 @@ const Sidebar = ({
                 className="font-medium text-sm truncate"
                 style={{ color: themeColors.text }}
               >
-                {user?.name || "Auction Manager"}
+                {user?.name || "Vishwakarma Welding"}
               </p>
               <p
                 className="text-xs opacity-75 truncate"
