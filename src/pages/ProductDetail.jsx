@@ -172,21 +172,29 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Description & About */}
-      {(product.description || product.aboutThisProduct) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {product.description && (
-            <div className="rounded-2xl border p-5" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-              <p className="text-xs uppercase opacity-50 font-semibold mb-2" style={{ color: themeColors.text }}>Description</p>
-              <p className="text-sm leading-relaxed" style={{ color: themeColors.text }}>{product.description}</p>
-            </div>
-          )}
-          {product.aboutThisProduct && (
-            <div className="rounded-2xl border p-5" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-              <p className="text-xs uppercase opacity-50 font-semibold mb-2" style={{ color: themeColors.text }}>About This Product</p>
-              <p className="text-sm leading-relaxed" style={{ color: themeColors.text }}>{product.aboutThisProduct}</p>
-            </div>
-          )}
+      {/* Description */}
+      {product.description && (
+        <div className="rounded-2xl border p-5" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+          <p className="text-xs uppercase opacity-50 font-semibold mb-2" style={{ color: themeColors.text }}>Description</p>
+          <p className="text-sm leading-relaxed" style={{ color: themeColors.text }}>{product.description}</p>
+        </div>
+      )}
+
+      {/* About This Product */}
+      {product.aboutThisProduct && (
+        <div className="rounded-2xl border p-5" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+          <p className="text-xs uppercase opacity-50 font-semibold mb-2" style={{ color: themeColors.text }}>About This Product</p>
+          <style>{`
+            .ck-content table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+            .ck-content table td, .ck-content table th { border: 1px solid ${themeColors.border}; padding: 8px 12px; font-size: 13px; color: ${themeColors.text}; }
+            .ck-content table th { font-weight: 600; background-color: ${themeColors.background}; }
+            .ck-content ul, .ck-content ol { padding-left: 20px; margin: 6px 0; }
+            .ck-content li { margin: 3px 0; }
+            .ck-content strong { font-weight: 600; }
+            .ck-content a { color: ${themeColors.primary}; text-decoration: underline; }
+          `}</style>
+          <div className="ck-content text-sm leading-relaxed" style={{ color: themeColors.text }}
+            dangerouslySetInnerHTML={{ __html: product.aboutThisProduct }} />
         </div>
       )}
     </div>

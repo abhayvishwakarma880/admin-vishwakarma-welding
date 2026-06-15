@@ -4,6 +4,9 @@ import { useTheme } from "../context/ThemeContext";
 import { getCategories } from "../apis/categories";
 import { createProduct } from "../apis/products";
 import { FaArrowLeft, FaBoxOpen } from "react-icons/fa";
+import { CKEditor } from "@ckeditor/ckeditor5-react";
+import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+// import "@ckeditor/ckeditor5-build-classic/build/ckeditor.css";
 
 const fmtCurrency = (n) =>
   typeof n === "number" && !isNaN(n)
@@ -144,13 +147,6 @@ export default function AddProduct() {
               className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none resize-none"
               style={inputStyle} placeholder="Short description..." />
           </div>
-
-          <div>
-            <label className="block mb-1 text-sm font-medium" style={{ color: themeColors.text }}>About This Product</label>
-            <textarea name="aboutThisProduct" value={form.aboutThisProduct} onChange={handleChange} rows={4}
-              className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none resize-none"
-              style={inputStyle} placeholder="Detailed product info..." />
-          </div>
         </div>
 
         {/* Pricing */}
@@ -225,6 +221,36 @@ export default function AddProduct() {
                 <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleGallery} className="hidden" />
               </label>
             </div>
+          </div>
+        </div>
+
+        {/* About This Product - CKEditor */}
+        <div className="rounded-2xl border p-5 space-y-4" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wide opacity-60" style={{ color: themeColors.text }}>About This Product</h2>
+          <div className="ck-wrapper">
+            <CKEditor
+              editor={ClassicEditor}
+              data={form.aboutThisProduct}
+              onChange={(_, editor) =>
+                setForm((prev) => ({ ...prev, aboutThisProduct: editor.getData() }))
+              }
+              config={{
+                toolbar: [
+                  "heading", "|",
+                  "bold", "italic", "underline", "strikethrough", "|",
+                  "link", "|",
+                  "bulletedList", "numberedList", "|",
+                  "blockQuote", "insertTable", "|",
+                  "undo", "redo",
+                ],
+                table: {
+                  contentToolbar: [
+                    "tableColumn", "tableRow", "mergeTableCells",
+                    "|", "tableProperties", "tableCellProperties",
+                  ],
+                },
+              }}
+            />
           </div>
         </div>
 

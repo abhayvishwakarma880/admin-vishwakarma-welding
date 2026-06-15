@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^41.4.2",
+    "@ckeditor/ckeditor5-react": "^11.2.0",
     "@tailwindcss/vite": "^4.1.13",
     "axios": "^1.11.0",
     "chart.js": "^4.5.1",
+    "ckeditor5": "^48.2.0",
+    "ckeditor5-premium-features": "^48.2.0",
     "highcharts": "^12.4.0",
     "highcharts-react-official": "^3.2.3",
     "jspdf": "^3.0.4",

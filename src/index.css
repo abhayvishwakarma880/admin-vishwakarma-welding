@@ -6,3 +6,49 @@
 body {
   font-family: var(--app-font);
 }
+
+/* ── CKEditor + Tailwind v4 conflict fix ── */
+.ck-editor__editable_inline {
+  min-height: 300px !important;
+  padding: 12px 16px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  box-sizing: border-box !important;
+}
+
+.ck.ck-editor {
+  width: 100% !important;
+  display: block !important;
+}
+
+.ck.ck-editor__main {
+  display: block !important;
+}
+
+.ck.ck-content {
+  min-height: 300px !important;
+  display: block !important;
+  height: auto !important;
+}
+
+.ck.ck-toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.ck.ck-toolbar .ck-toolbar__items {
+  display: flex !important;
+  flex-wrap: wrap !important;
+}
+
+.ck p, .ck ul, .ck ol, .ck h1, .ck h2, .ck h3, .ck h4, .ck blockquote {
+  all: revert !important;
+}
+
+.ck-wrapper {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
