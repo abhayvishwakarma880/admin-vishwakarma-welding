@@ -1,36 +1,32 @@
-// src/apis/sliders.js
 import http from "./http";
 
-// GET /sliders/all  (admin list with status filter)
-export const listSliders = async (status = 'active') => {
-  const { data } = await http.get(`/sliders/all?status=${status}`);
-  return Array.isArray(data) ? data : data.sliders || [];
+export const getAllSliders = async ({ page = 1, limit = 10, isActive = "" } = {}) => {
+  const params = new URLSearchParams({ page, limit });
+  if (isActive !== "") params.append("isActive", isActive);
+  const { data } = await http.get(`/slider?${params.toString()}`);
+  return data;
 };
 
-// POST /sliders  (admin create, multipart/form-data)
 export const createSlider = async (formData) => {
-  const { data } = await http.post("/sliders", formData, {
+  const { data } = await http.post("/slider/create", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
 };
 
-// PUT /sliders/:sliderId  (admin update, multipart/form-data)
-export const updateSlider = async (sliderId, formData) => {
-  const { data } = await http.put(`/sliders/${sliderId}`, formData, {
+export const updateSlider = async (id, formData) => {
+  const { data } = await http.put(`/slider/update/${id}`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
 };
 
-// PATCH /sliders/:sliderId/toggle-status  (admin toggle status)
-export const toggleSliderStatus = async (sliderId) => {
-  const { data } = await http.patch(`/sliders/${sliderId}/toggle-status`);
+export const toggleSliderStatus = async (id) => {
+  const { data } = await http.patch(`/slider/toggle/${id}`);
   return data;
 };
 
-// DELETE /sliders/:sliderId  (admin delete)
-export const deleteSlider = async (sliderId) => {
-  const { data } = await http.delete(`/sliders/${sliderId}`);
+export const deleteSlider = async (id) => {
+  const { data } = await http.delete(`/slider/delete/${id}`);
   return data;
 };

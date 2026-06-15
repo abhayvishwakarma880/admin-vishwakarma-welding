@@ -1,12 +1,14 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { getCategories } from "../apis/categories";
 import { listProducts, createProduct, updateProduct, deleteProduct, toggleProductStatus } from "../apis/products";
 import {
-  FaBoxOpen, FaPlus, FaEdit, FaTrash, FaSyncAlt, FaSearch,
-  FaToggleOn, FaToggleOff, FaEye, FaChevronLeft, FaChevronRight, FaChevronDown, FaCheck,
+  FaBoxOpen, FaPlus, FaEdit, FaTrash, FaSyncAlt,
+  FaToggleOn, FaToggleOff, FaEye,
 } from "react-icons/fa";
+import Table from "../components/Table";
+import TableCard from "../components/TableCard";
 
 const fmtDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
@@ -14,51 +16,10 @@ const fmtDate = (iso) =>
 const fmtCurrency = (n) =>
   typeof n === "number" ? `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "-";
 
-const LIMIT_OPTIONS = ["10", "25", "50", "100"];
-
 const emptyForm = {
   name: "", category: "", price: "", discount: "",
   description: "", aboutThisProduct: "",
 };
-
-function CustomSelect({ value, onChange, options, placeholder }) {
-  const { themeColors } = useTheme();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  const selected = options.find((o) => String(o.value) === String(value));
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((p) => !p)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium min-w-[120px]"
-        style={{ backgroundColor: themeColors.background, borderColor: open ? themeColors.primary : themeColors.border, color: themeColors.text }}
-      >
-        <span className="flex-1 text-left truncate">{selected ? selected.label : placeholder}</span>
-        <FaChevronDown style={{ opacity: 0.5, transform: open ? "rotate(180deg)" : "rotate(0)", transition: "transform .2s" }} />
-      </button>
-      {open && (
-        <div className="absolute z-50 mt-1 rounded-xl border shadow-lg overflow-hidden"
-          style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, minWidth: "150px", top: "100%", right: 0 }}>
-          {options.map((opt) => (
-            <button key={opt.value} type="button" onClick={() => { onChange(opt.value); setOpen(false); }}
-              className="w-full flex items-center justify-between px-3 py-2 text-xs hover:opacity-80"
-              style={{ backgroundColor: String(value) === String(opt.value) ? themeColors.primary + "15" : "transparent", color: String(value) === String(opt.value) ? themeColors.primary : themeColors.text }}
-            >
-              <span>{opt.label}</span>
-              {String(value) === String(opt.value) && <FaCheck className="text-[10px]" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Products() {
   const { themeColors } = useTheme();
@@ -75,10 +36,8 @@ export default function Products() {
   const [page, setPage]               = useState(1);
   const [limit, setLimit]             = useState(10);
   const [search, setSearch]           = useState("");
-  const [searchInput, setSearchInput] = useState("");
   const [isActive, setIsActive]       = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const debounceRef                   = useRef(null);
 
   // modal
   const [isModalOpen, setIsModalOpen]   = useState(false);
@@ -113,13 +72,6 @@ export default function Products() {
   }, [page, limit, search, isActive, categoryFilter]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
-
-  const handleSearchInput = (e) => {
-    const val = e.target.value;
-    setSearchInput(val);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { setSearch(val); setPage(1); }, 500);
-  };
 
   const openAddModal = () => {
     setEditing(null);
@@ -230,18 +182,50 @@ export default function Products() {
     }
   };
 
-  const pageNumbers = (() => {
-    const max = 5;
-    let start = Math.max(1, pagination.page - Math.floor(max / 2));
-    let end   = Math.min(pagination.totalPages, start + max - 1);
-    if (end - start + 1 < max) start = Math.max(1, end - max + 1);
-    const pages = [];
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
-  })();
+  const tableColumns = [
+    {
+      key: "mainImage", label: "Image",
+      render: (row) => row.mainImage?.url
+        ? <img src={row.mainImage.url} alt={row.name} className="h-10 w-10 rounded-lg object-cover" />
+        : <div className="h-10 w-10 rounded-lg flex items-center justify-center text-xs" style={{ backgroundColor: themeColors.border, color: themeColors.text }}>N/A</div>,
+    },
+    { key: "name",     label: "Name",     render: (row) => <span className="font-medium">{row.name}</span> },
+    { key: "category", label: "Category", render: (row) => row.category?.name || "-" },
+    { key: "price",    label: "Price",    render: (row) => fmtCurrency(row.price) },
+    { key: "discount", label: "Discount", render: (row) => row.discount ? `${row.discount}%` : "-" },
+    {
+      key: "isActive", label: "Status",
+      render: (row) => row.isActive
+        ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#10b98115", color: "#10b981" }}>Active</span>
+        : <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#ef444415", color: "#ef4444" }}>Inactive</span>,
+    },
+    { key: "createdAt", label: "Created", render: (row) => fmtDate(row.createdAt) },
+  ];
 
-  const from = pagination.total === 0 ? 0 : (pagination.page - 1) * limit + 1;
-  const to   = Math.min(pagination.page * limit, pagination.total);
+  const tableActions = [
+    { label: "View",   icon: <FaEye />,   onClick: (row) => navigate(`/products/${row._id}`), color: themeColors.primary },
+    { label: "Toggle", icon: <FaToggleOn />, onClick: handleToggle, color: "#f59e0b",
+      render: (row) => row.isActive ? <FaToggleOn /> : <FaToggleOff /> },
+    { label: "Edit",   icon: <FaEdit />,  onClick: (row) => navigate(`/products/edit/${row._id}`), color: themeColors.primary },
+    { label: "Delete", icon: <FaTrash />, onClick: handleDelete, color: "#ef4444", disabled: () => saving },
+  ];
+
+  const tableFilters = [
+    {
+      key: "category", label: "Category",
+      options: categories.map((c) => ({ label: c.name, value: c._id })),
+    },
+    {
+      key: "status", label: "Status",
+      options: [{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }],
+    },
+  ];
+
+  const handleFilterChange = ({ key, value }) => {
+    if (key === "category") setCategoryFilter(value);
+    if (key === "status")   setIsActive(value);
+    setPage(1);
+  };
 
   return (
     <div className="space-y-5">
@@ -275,135 +259,37 @@ export default function Products() {
         </div>
       )}
 
-      {/* Table Card */}
-      <div className="rounded-xl border flex flex-col" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+      {/* Table — desktop */}
+      <Table
+        serverSide
+        columns={tableColumns}
+        data={products}
+        actions={tableActions}
+        filters={tableFilters}
+        loading={loading}
+        pagination={pagination}
+        onPageChange={setPage}
+        onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        onSearchChange={(s) => { setSearch(s); setPage(1); }}
+        onFilterChange={handleFilterChange}
+        searchPlaceholder="Search name, description..."
+      />
 
-        {/* Top Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 py-3 border-b" style={{ borderColor: themeColors.border }}>
-          <div className="flex items-center gap-2 text-xs" style={{ color: themeColors.text }}>
-            <span className="opacity-60">Show</span>
-            <CustomSelect value={String(limit)} onChange={(v) => { setLimit(Number(v)); setPage(1); }}
-              options={LIMIT_OPTIONS.map((n) => ({ label: n, value: n }))} placeholder="10" />
-            <span className="opacity-60">entries</span>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <CustomSelect value={categoryFilter} onChange={(v) => { setCategoryFilter(v); setPage(1); }}
-              options={[{ label: "Category: All", value: "" }, ...categories.map((c) => ({ label: c.name, value: c._id }))]}
-              placeholder="Category: All"
-            />
-            <CustomSelect value={isActive} onChange={(v) => { setIsActive(v); setPage(1); }}
-              options={[{ label: "Status: All", value: "" }, { label: "Active", value: "true" }, { label: "Inactive", value: "false" }]}
-              placeholder="Status: All"
-            />
-            <div className="relative">
-              <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs opacity-40" style={{ color: themeColors.text }} />
-              <input type="text" value={searchInput} onChange={handleSearchInput}
-                placeholder="Search name, description..."
-                className="pl-7 pr-3 py-1.5 rounded-lg border text-xs w-52 focus:outline-none"
-                style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-auto flex-1" style={{ maxHeight: "500px" }}>
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10">
-              <tr style={{ backgroundColor: themeColors.surface }}>
-                {["Actions", "Image", "Name", "Category", "Price", "Discount", "Status", "Created"].map((h) => (
-                  <th key={h} className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide whitespace-nowrap border-b"
-                    style={{ color: themeColors.text + "99", borderColor: themeColors.border, backgroundColor: themeColors.surface }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="animate-spin h-6 w-6 border-2 border-t-transparent rounded-full" style={{ borderColor: themeColors.primary }} />
-                    <span className="text-xs opacity-60" style={{ color: themeColors.text }}>Loading...</span>
-                  </div>
-                </td></tr>
-              ) : products.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-10 text-center text-sm opacity-50" style={{ color: themeColors.text }}>No products found.</td></tr>
-              ) : (
-                products.map((prod) => (
-                  <tr key={prod._id} className="hover:bg-black/5 transition-colors border-b" style={{ borderColor: themeColors.border }}>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => navigate(`/products/${prod._id}`)} title="View"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border hover:opacity-80 cursor-pointer"
-                          style={{ color: themeColors.primary, borderColor: themeColors.primary + "40", backgroundColor: themeColors.primary + "10" }}>
-                          <FaEye />
-                        </button>
-                        <button onClick={() => handleToggle(prod)} title={prod.isActive ? "Deactivate" : "Activate"}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border hover:opacity-80 cursor-pointer"
-                          style={{ color: prod.isActive ? "#f59e0b" : "#10b981", borderColor: (prod.isActive ? "#f59e0b" : "#10b981") + "40", backgroundColor: (prod.isActive ? "#f59e0b" : "#10b981") + "10" }}>
-                          {prod.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                        </button>
-                        <button onClick={() => navigate(`/products/edit/${prod._id}`)} title="Edit"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border hover:opacity-80 cursor-pointer"
-                          style={{ color: themeColors.primary, borderColor: themeColors.primary + "40", backgroundColor: themeColors.primary + "10" }}>
-                          <FaEdit />
-                        </button>
-                        <button onClick={() => handleDelete(prod)} disabled={saving} title="Delete"
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border hover:opacity-80 cursor-pointer disabled:opacity-40"
-                          style={{ color: "#ef4444", borderColor: "#ef444440", backgroundColor: "#ef444410" }}>
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      {prod.mainImage?.url
-                        ? <img src={prod.mainImage.url} alt={prod.name} className="h-10 w-10 rounded-lg object-cover" />
-                        : <div className="h-10 w-10 rounded-lg flex items-center justify-center text-xs" style={{ backgroundColor: themeColors.border, color: themeColors.text }}>N/A</div>}
-                    </td>
-                    <td className="px-4 py-2 font-medium max-w-[150px] truncate" style={{ color: themeColors.text }}>{prod.name}</td>
-                    <td className="px-4 py-2 text-xs" style={{ color: themeColors.text }}>{prod.category?.name || "-"}</td>
-                    <td className="px-4 py-2 text-xs font-medium" style={{ color: themeColors.text }}>{fmtCurrency(prod.price)}</td>
-                    <td className="px-4 py-2 text-xs" style={{ color: themeColors.text }}>{prod.discount ? `${prod.discount}%` : "-"}</td>
-                    <td className="px-4 py-2">
-                      {prod.isActive
-                        ? <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#10b98115", color: "#10b981" }}>Active</span>
-                        : <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#ef444415", color: "#ef4444" }}>Inactive</span>}
-                    </td>
-                    <td className="px-4 py-2 text-xs" style={{ color: themeColors.text }}>{fmtDate(prod.createdAt)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t" style={{ borderColor: themeColors.border }}>
-          <p className="text-xs opacity-60" style={{ color: themeColors.text }}>
-            Showing <b>{from}</b> to <b>{to}</b> of <b>{pagination.total}</b> entries
-          </p>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={pagination.page <= 1 || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-80"
-              style={{ borderColor: themeColors.border, color: themeColors.text }}>
-              <FaChevronLeft /> Prev
-            </button>
-            {pageNumbers.map((n) => (
-              <button key={n} onClick={() => setPage(n)}
-                className="min-w-[32px] h-8 rounded-lg text-xs font-semibold border transition-all"
-                style={{ backgroundColor: pagination.page === n ? themeColors.primary : "transparent", color: pagination.page === n ? themeColors.onPrimary : themeColors.text, borderColor: pagination.page === n ? themeColors.primary : themeColors.border }}>
-                {n}
-              </button>
-            ))}
-            <button onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))} disabled={pagination.page >= pagination.totalPages || loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-80"
-              style={{ borderColor: themeColors.border, color: themeColors.text }}>
-              Next <FaChevronRight />
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* TableCard — mobile */}
+      <TableCard
+        serverSide
+        columns={tableColumns}
+        data={products}
+        actions={tableActions}
+        filters={tableFilters}
+        loading={loading}
+        pagination={pagination}
+        onPageChange={setPage}
+        onLimitChange={(l) => { setLimit(l); setPage(1); }}
+        onSearchChange={(s) => { setSearch(s); setPage(1); }}
+        onFilterChange={handleFilterChange}
+        searchPlaceholder="Search name, description..."
+      />
 
       {/* Add/Edit Modal */}
       {isModalOpen && (

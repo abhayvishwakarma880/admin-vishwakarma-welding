@@ -1,868 +1,357 @@
-// src/pages/Sliders.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { useFont } from "../context/FontContext";
-import { useAuth } from "../context/AuthContext";
 import {
-  listSliders,
-  createSlider,
-  updateSlider,
-  deleteSlider,
-  toggleSliderStatus,
+  getAllSliders, createSlider, updateSlider,
+  toggleSliderStatus, deleteSlider,
 } from "../apis/sliders";
 import {
-  FaImages,
-  FaPlus,
-  FaEdit,
-  FaTrash,
-  FaSyncAlt,
-  FaSearch,
-  FaLink,
-  FaToggleOn,
-  FaToggleOff,
+  FaImages, FaPlus, FaEdit, FaTrash,
+  FaSyncAlt, FaToggleOn, FaToggleOff, FaEye, FaTimes,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
+import Table from "../components/Table";
+import TableCard from "../components/TableCard";
 
-// ---------- helpers ----------
 const fmtDate = (iso) =>
-  iso ? new Date(iso).toLocaleDateString("en-IN") : "-";
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
 
-const emptyForm = {};
-
+// ── Modal modes: "add" | "view" | "edit"
 export default function Sliders() {
   const { themeColors } = useTheme();
-  const { currentFont } = useFont();
-  const { isLoggedIn } = useAuth();
 
-  const [sliders, setSliders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [statusFilter, setStatusFilter] = useState("active");
+  const [sliders, setSliders]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState("");
+  const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 });
 
-  const [form, setForm] = useState(emptyForm);
-  const [editing, setEditing] = useState(null); // slider being edited
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [page, setPage]     = useState(1);
+  const [limit, setLimit]   = useState(10);
+  const [isActive, setIsActive] = useState("");
 
-  const [imageFile, setImageFile] = useState(null);
+  // modal state
+  const [modal, setModal]           = useState(null);   // null | { mode, slider? }
+  const [imageFile, setImageFile]   = useState(null);
   const [imagePreview, setImagePreview] = useState("");
 
-  const [search, setSearch] = useState("");
-
-  // ---------- fetch ----------
-  const fetchSliders = async () => {
+  const fetchSliders = useCallback(async () => {
     try {
-      setLoading(true);
-      setError("");
-      // const list = await listSliders(statusFilter);
-      
-      await new Promise(resolve => setTimeout(resolve, 600));
-
-      const dummySliders = [
-        {
-          _id: "S001",
-          image: { url: "https://res.cloudinary.com/demo/image/upload/v1611000000/slider1.jpg" },
-          isActive: true,
-          sortOrder: 1,
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: "S002",
-          image: { url: "https://res.cloudinary.com/demo/image/upload/v1611000000/slider2.jpg" },
-          isActive: true,
-          sortOrder: 2,
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: "S003",
-          image: { url: "https://res.cloudinary.com/demo/image/upload/v1611000000/slider3.jpg" },
-          isActive: false,
-          sortOrder: 3,
-          createdAt: new Date().toISOString()
-        }
-      ];
-
-      const filteredList = dummySliders.filter(s => 
-        statusFilter === 'active' ? s.isActive : !s.isActive
-      );
-
-      setSliders(filteredList);
+      setLoading(true); setError("");
+      const res = await getAllSliders({ page, limit, isActive });
+      setSliders(res.data || []);
+      setPagination(res.pagination || { total: 0, page: 1, totalPages: 1 });
     } catch (e) {
-      setError(
-        e?.response?.data?.message ||
-          e?.message ||
-          "Failed to load sliders."
-      );
+      setError(e?.response?.data?.message || "Failed to load sliders.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, isActive]);
 
-  useEffect(() => {
-    fetchSliders();
-  }, [statusFilter]);
+  useEffect(() => { fetchSliders(); }, [fetchSliders]);
 
-  const resetForm = () => {
-    setForm(emptyForm);
-    setEditing(null);
+  // ── Modal helpers ─────────────────────────────────────────
+  const openAdd = () => {
     setImageFile(null);
     setImagePreview("");
-  };
-
-  const openAddModal = () => {
-    resetForm();
     setError("");
-    setSuccess("");
-    setIsModalOpen(true);
+    setModal({ mode: "add" });
   };
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+  const openView = (slider) => {
     setError("");
-    setSuccess("");
+    setModal({ mode: "view", slider });
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-    } else {
-      setImageFile(null);
-      setImagePreview("");
-    }
-  };
-
-  const handleEdit = (slider) => {
-    setEditing(slider);
-    setForm({});
+  const openEdit = (slider) => {
     setImageFile(null);
     setImagePreview(slider.image?.url || "");
     setError("");
-    setSuccess("");
-    setIsModalOpen(true);
+    setModal({ mode: "edit", slider });
   };
 
-  const buildFormData = () => {
-    const fd = new FormData();
-    if (imageFile) fd.append("image", imageFile);
-    return fd;
+  const closeModal = () => {
+    setModal(null);
+    setImageFile(null);
+    setImagePreview("");
+    setError("");
   };
 
-  const handleDelete = async (slider) => {
-    if (!isLoggedIn) {
-      setError("You must be logged in as admin to delete sliders.");
-      return;
-    }
-
-    const id = slider._id || slider.id;
-    if (!id) {
-      setError("Cannot delete this slider (missing identifier).");
-      return;
-    }
-
-    const result = await Swal.fire({
-      title: `Delete slider "${slider.title}"?`,
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#e02424",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete it",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-      await deleteSlider(id);
-      setSuccess("Slider deleted successfully.");
-      await fetchSliders();
-      Swal.fire({
-        icon: "success",
-        title: "Deleted",
-        text: "Slider deleted successfully.",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Failed to delete slider.";
-      setError(msg);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: msg,
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ---------- Active / Inactive toggle ----------
-  const handleToggleStatus = async (slider) => {
-    if (!isLoggedIn) {
-      setError("You must be logged in as admin to change status.");
-      return;
-    }
-
-    const id = slider._id || slider.id;
-    if (!id) {
-      setError("Cannot update this slider (missing identifier).");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      await toggleSliderStatus(id);
-      await fetchSliders();
-
-      setSuccess(
-        `Slider ${!slider.isActive ? "activated" : "deactivated"} successfully.`
-      );
-
-      Swal.fire({
-        icon: "success",
-        title: !slider.isActive ? "Activated" : "Deactivated",
-        text: `Slider ${!slider.isActive ? "activated" : "deactivated"} successfully.`,
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Failed to update slider status.";
-      setError(msg);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: msg,
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // ── Submit (add / edit) ───────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!isLoggedIn) {
-      setError("You must be logged in as admin to manage sliders.");
+    if (modal.mode === "add" && !imageFile) {
+      setError("Image is required.");
       return;
     }
-
-    if (!imageFile && !editing) {
-      setError("Slider image is required.");
+    if (modal.mode === "edit" && !imageFile) {
+      setError("New image choose karo replace karne ke liye.");
       return;
     }
-
     try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
+      setSaving(true); setError("");
+      const fd = new FormData();
+      fd.append("image", imageFile);
 
-      const fd = buildFormData();
-
-      if (editing) {
-        const id = editing._id || editing.id;
-        if (!id) throw new Error("Missing slider identifier for update.");
-        await updateSlider(id, fd);
-        setSuccess("Slider updated successfully.");
-        Swal.fire({
-          icon: "success",
-          title: "Updated",
-          text: "Slider updated successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
+      if (modal.mode === "add") {
         await createSlider(fd);
-        setSuccess("Slider created successfully.");
-        Swal.fire({
-          icon: "success",
-          title: "Created",
-          text: "Slider created successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+      } else {
+        await updateSlider(modal.slider._id, fd);
       }
 
-      resetForm();
-      setIsModalOpen(false);
-      await fetchSliders();
-    } catch (e) {
-      const msg =
-        e?.response?.data?.message ||
-        e?.message ||
-        "Failed to save slider.";
-      setError(msg);
+      closeModal();
+      fetchSliders();
       Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: msg,
+        icon: "success",
+        title: modal.mode === "add" ? "Slider Added!" : "Slider Updated!",
+        timer: 1500,
+        showConfirmButton: false,
       });
+    } catch (e) {
+      setError(e?.response?.data?.message || "Save failed.");
     } finally {
       setSaving(false);
     }
   };
 
-  const filteredSliders = useMemo(() => {
-    let list = sliders;
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((s) => {
-        return true; // No text fields to search
-      });
+  // ── Toggle status ─────────────────────────────────────────
+  const handleToggle = async (row) => {
+    try {
+      await toggleSliderStatus(row._id);
+      fetchSliders();
+    } catch (e) {
+      setError(e?.response?.data?.message || "Status change failed.");
     }
+  };
 
-    // sort by sortOrder ascending, then createdAt desc
-    return [...list].sort((a, b) => {
-      const sa = a.sortOrder ?? 9999;
-      const sb = b.sortOrder ?? 9999;
-      if (sa !== sb) return sa - sb;
-      const da = new Date(a.createdAt || 0).getTime();
-      const db = new Date(b.createdAt || 0).getTime();
-      return db - da;
+  // ── Delete ─────────────────────────────────────────────────
+  const handleDelete = async (row) => {
+    const result = await Swal.fire({
+      title: "Slider delete karna chahte ho?",
+      text: "Ye action undo nahi hoga.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: themeColors.danger,
+      confirmButtonText: "Haan, Delete Karo",
+      cancelButtonText: "Cancel",
     });
-  }, [sliders, search]);
+    if (!result.isConfirmed) return;
+    try {
+      await deleteSlider(row._id);
+      fetchSliders();
+    } catch (e) {
+      setError(e?.response?.data?.message || "Delete failed.");
+    }
+  };
+
+  // ── Table config ──────────────────────────────────────────
+  const tableColumns = [
+    {
+      key: "image", label: "Image",
+      render: (row) => (
+        <img
+          src={row.image?.url}
+          alt="slider"
+          className="h-14 w-28 object-cover rounded-lg border"
+          style={{ borderColor: themeColors.border }}
+        />
+      ),
+    },
+    {
+      key: "isActive", label: "Status",
+      render: (row) => row.isActive
+        ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#10b98115", color: "#10b981" }}>Active</span>
+        : <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#ef444415", color: "#ef4444" }}>Inactive</span>,
+    },
+    { key: "createdAt", label: "Added On", render: (row) => fmtDate(row.createdAt) },
+  ];
+
+  const tableActions = [
+    { label: "View",   icon: <FaEye />,       onClick: openView,   color: themeColors.primary },
+    { label: "Edit",   icon: <FaEdit />,      onClick: openEdit,   color: "#f59e0b" },
+    {
+      label: "Activate", icon: <FaToggleOff />, onClick: handleToggle,
+      color: "#10b981", hide: (row) => row.isActive,
+    },
+    {
+      label: "Deactivate", icon: <FaToggleOn />, onClick: handleToggle,
+      color: "#f97316", hide: (row) => !row.isActive,
+    },
+    { label: "Delete", icon: <FaTrash />,     onClick: handleDelete, color: themeColors.danger },
+  ];
+
+  const tableFilters = [
+    {
+      key: "isActive", label: "Status",
+      options: [{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }],
+    },
+  ];
+
+  const sharedProps = {
+    serverSide: true,
+    columns: tableColumns,
+    data: sliders,
+    actions: tableActions,
+    filters: tableFilters,
+    loading,
+    pagination,
+    onPageChange:   (p) => setPage(p),
+    onLimitChange:  (l) => { setLimit(l); setPage(1); },
+    onSearchChange: () => {},           // no search on sliders
+    onFilterChange: ({ key, value }) => { if (key === "isActive") { setIsActive(value); setPage(1); } },
+    searchPlaceholder: "Search...",
+  };
 
   return (
-    <div
-      className="space-y-6"
-      style={{ fontFamily: currentFont.family }}
-    >
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-2xl font-bold flex items-center gap-2"
-            style={{ color: themeColors.text }}
-          >
-            <FaImages />
-            Homepage Sliders
+          <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: themeColors.text }}>
+            <FaImages style={{ color: themeColors.primary }} /> Sliders
           </h1>
-          <p
-            className="text-sm mt-1 opacity-75"
-            style={{ color: themeColors.text }}
-          >
-            Manage home page banner sliders with images, text and links.
+          <p className="text-sm opacity-60 mt-0.5" style={{ color: themeColors.text }}>
+            Homepage banner sliders manage karo
           </p>
         </div>
-
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status Filter Toggle */}
-          <div className="flex items-center gap-1 p-1 rounded-lg border"
-            style={{
-              backgroundColor: themeColors.surface,
-              borderColor: themeColors.border,
-            }}
-          >
-            <button
-              onClick={() => setStatusFilter("active")}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                statusFilter === "active" ? "" : "opacity-60"
-              }`}
-              style={{
-                backgroundColor: statusFilter === "active" ? themeColors.primary : "transparent",
-                color: statusFilter === "active" ? themeColors.onPrimary : themeColors.text,
-              }}
-            >
-              Active
-            </button>
-            <button
-              onClick={() => setStatusFilter("inactive")}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                statusFilter === "inactive" ? "" : "opacity-60"
-              }`}
-              style={{
-                backgroundColor: statusFilter === "inactive" ? themeColors.primary : "transparent",
-                color: statusFilter === "inactive" ? themeColors.onPrimary : themeColors.text,
-              }}
-            >
-              Inactive
-            </button>
-          </div>
-
-          <div className="relative">
-            <span className="absolute left-3 top-2.5 text-xs opacity-70">
-              <FaSearch style={{ color: themeColors.text }} />
-            </span>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search sliders..."
-              className="pl-8 pr-3 py-2 rounded-lg border text-sm"
-              style={{
-                backgroundColor: themeColors.surface,
-                borderColor: themeColors.border,
-                color: themeColors.text,
-              }}
-              disabled
-            />
-          </div>
-
-          <button
-            onClick={fetchSliders}
-            className="px-3 py-2 rounded-lg border text-sm flex items-center gap-2"
-            style={{
-              backgroundColor: themeColors.surface,
-              borderColor: themeColors.border,
-              color: themeColors.text,
-            }}
-            title="Refresh"
-          >
-            <FaSyncAlt className={loading ? "animate-spin" : ""} />
-            Refresh
+        <div className="flex items-center gap-2">
+          <button onClick={fetchSliders} disabled={loading}
+            className="px-3 py-2 rounded-lg border text-sm flex items-center gap-2 disabled:opacity-50"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }}>
+            <FaSyncAlt className={loading ? "animate-spin" : ""} /> Refresh
           </button>
-
-          <button
-            onClick={openAddModal}
-            disabled={!isLoggedIn}
-            className="px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: themeColors.primary,
-              color: themeColors.onPrimary,
-            }}
-            title={
-              isLoggedIn ? "Create slider" : "Login as admin to add"
-            }
-          >
-            <FaPlus />
-            New Slider
+          <button onClick={openAdd}
+            className="px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"
+            style={{ backgroundColor: themeColors.primary, color: themeColors.onPrimary }}>
+            <FaPlus /> Add Slider
           </button>
         </div>
       </div>
 
-      {/* Messages */}
-      {(error || success || !isLoggedIn) && (
-        <div className="space-y-2">
-          {error && (
-            <div
-              className="p-3 rounded-lg text-sm border"
-              style={{
-                backgroundColor: themeColors.danger + "15",
-                borderColor: themeColors.danger + "50",
-                color: themeColors.danger,
-              }}
-            >
-              {error}
-            </div>
-          )}
-          {success && (
-            <div
-              className="p-3 rounded-lg text-sm border"
-              style={{
-                backgroundColor:
-                  (themeColors.success || themeColors.primary) +
-                  "15",
-                borderColor:
-                  (themeColors.success || themeColors.primary) +
-                  "50",
-                color:
-                  themeColors.success || themeColors.primary,
-              }}
-            >
-              {success}
-            </div>
-          )}
-          {!isLoggedIn && (
-            <div
-              className="p-3 rounded-lg text-sm border"
-              style={{
-                backgroundColor:
-                  (themeColors.warning || themeColors.primary) +
-                  "15",
-                borderColor:
-                  (themeColors.warning || themeColors.primary) +
-                  "50",
-                color:
-                  themeColors.warning || themeColors.primary,
-              }}
-            >
-              You are viewing sliders in read-only mode. Login as admin
-              to create, edit, or delete sliders.
-            </div>
-          )}
+      {error && (
+        <div className="p-3 rounded-lg text-sm border"
+          style={{ backgroundColor: themeColors.danger + "15", borderColor: themeColors.danger + "50", color: themeColors.danger }}>
+          {error}
         </div>
       )}
 
-      {/* Table */}
-      <div
-        className="p-6 rounded-xl border"
-        style={{
-          backgroundColor: themeColors.surface,
-          borderColor: themeColors.border,
-        }}
-      >
-        <h2
-          className="text-lg font-semibold mb-4 flex items-center justify-between"
-          style={{ color: themeColors.text }}
-        >
-          <span className="flex items-center gap-2">
-            <FaImages />
-            {statusFilter === "active" ? "Active" : "Inactive"} Sliders
-          </span>
-          <span className="text-xs opacity-70">
-            {filteredSliders.length} of {sliders.length} shown
-          </span>
-        </h2>
+      <Table     {...sharedProps} />
+      <TableCard {...sharedProps} />
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr
-                style={{
-                  backgroundColor: themeColors.background + "30",
-                }}
-              >
-                {[
-                  "Image",
-                  "Status",
-                  "Created",
-                  "Actions",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: themeColors.text }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody
-              className="divide-y"
-              style={{ borderColor: themeColors.border }}
-            >
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-center text-sm"
-                    style={{ color: themeColors.text }}
-                  >
-                    Loading sliders...
-                  </td>
-                </tr>
-              ) : filteredSliders.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-6 text-center text-sm"
-                    style={{ color: themeColors.text }}
-                  >
-                    No sliders found.
-                  </td>
-                </tr>
-              ) : (
-                filteredSliders.map((s) => (
-                  <tr key={s._id || s.id}>
-                    {/* Image */}
-                    <td className="px-4 py-2">
-                      {s.image?.url ? (
-                        <img
-                          src={s.image.url}
-                          alt={s.title}
-                          className="h-16 w-32 object-cover rounded-lg border"
-                          style={{ borderColor: themeColors.border }}
-                        />
-                      ) : (
-                        <div
-                          className="h-16 w-32 rounded-lg border flex items-center justify-center text-xs"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.text,
-                          }}
-                        >
-                          No image
-                        </div>
-                      )}
-                    </td>
+      {/* ── Modal ── */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-2xl shadow-xl border flex flex-col max-h-[90vh]"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
 
-                    {/* Status */}
-                    <td className="px-4 py-2">
-                      <span
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold"
-                        style={{
-                          backgroundColor: s.isActive
-                            ? (themeColors.success ||
-                                themeColors.primary) + "15"
-                            : themeColors.border,
-                          color: s.isActive
-                            ? themeColors.success ||
-                              themeColors.primary
-                            : themeColors.text,
-                        }}
-                      >
-                        {s.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-
-                    {/* Created */}
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {fmtDate(s.createdAt)}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        {/* Active/Inactive Toggle */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(s)}
-                          disabled={!isLoggedIn || saving}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: s.isActive
-                              ? themeColors.warning || "#f59e0b"
-                              : themeColors.success ||
-                                themeColors.primary,
-                          }}
-                          title={
-                            isLoggedIn
-                              ? s.isActive
-                                ? "Mark as Inactive"
-                                : "Mark as Active"
-                              : "Login as admin to change status"
-                          }
-                        >
-                          {s.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                        </button>
-
-                        {/* Edit */}
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(s)}
-                          disabled={!isLoggedIn}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.text,
-                          }}
-                          title={
-                            isLoggedIn
-                              ? "Edit"
-                              : "Login as admin to edit"
-                          }
-                        >
-                          <FaEdit />
-                        </button>
-
-                        {/* Delete */}
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(s)}
-                          disabled={!isLoggedIn || saving}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.danger,
-                          }}
-                          title={
-                            isLoggedIn
-                              ? "Delete"
-                              : "Login as admin to delete"
-                          }
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Add / Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div
-            className="w-full max-w-3xl mx-4 rounded-2xl shadow-lg border max-h-[90vh] overflow-hidden flex flex-col"
-            style={{
-              backgroundColor: themeColors.surface,
-              borderColor: themeColors.border,
-            }}
-          >
-            <div
-              className="flex items-center justify-between px-6 py-4 border-b"
-              style={{ borderColor: themeColors.border }}
-            >
-              <h2
-                className="text-lg font-semibold flex items-center gap-2"
-                style={{ color: themeColors.text }}
-              >
-                <FaPlus />
-                {editing ? "Edit Slider" : "Create Slider"}
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+              style={{ borderColor: themeColors.border }}>
+              <h2 className="text-base font-semibold flex items-center gap-2" style={{ color: themeColors.text }}>
+                {modal.mode === "add"  && <><FaPlus />  Add Slider</>}
+                {modal.mode === "view" && <><FaEye />   Slider Details</>}
+                {modal.mode === "edit" && <><FaEdit />  Edit Slider</>}
               </h2>
-              <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetForm();
-                }}
-                className="text-xl leading-none px-2"
-                style={{ color: themeColors.text }}
-              >
-                ×
+              <button onClick={closeModal} className="p-1 rounded-lg hover:opacity-70" style={{ color: themeColors.text }}>
+                <FaTimes />
               </button>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="px-6 py-4 space-y-4 overflow-y-auto"
-            >
-              {error && (
-                <div
-                  className="p-2 rounded-lg text-xs border"
-                  style={{
-                    backgroundColor: themeColors.danger + "15",
-                    borderColor: themeColors.danger + "50",
-                    color: themeColors.danger,
-                  }}
-                >
-                  {error}
+            {/* Modal Body */}
+            <div className="overflow-y-auto px-5 py-4 flex-1">
+
+              {/* ── VIEW mode ── */}
+              {modal.mode === "view" && (
+                <div className="space-y-4">
+                  <img
+                    src={modal.slider.image?.url}
+                    alt="slider"
+                    className="w-full rounded-xl border object-cover"
+                    style={{ borderColor: themeColors.border, maxHeight: "300px" }}
+                  />
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs uppercase font-semibold opacity-50 mb-0.5" style={{ color: themeColors.text }}>Status</p>
+                      {modal.slider.isActive
+                        ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#10b98115", color: "#10b981" }}>Active</span>
+                        : <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ backgroundColor: "#ef444415", color: "#ef4444" }}>Inactive</span>
+                      }
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase font-semibold opacity-50 mb-0.5" style={{ color: themeColors.text }}>Added On</p>
+                      <p style={{ color: themeColors.text }}>{fmtDate(modal.slider.createdAt)}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => openEdit(modal.slider)}
+                      className="flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-2"
+                      style={{ borderColor: "#f59e0b40", backgroundColor: "#f59e0b10", color: "#f59e0b" }}>
+                      <FaEdit /> Edit Image
+                    </button>
+                    <button onClick={() => { closeModal(); handleDelete(modal.slider); }}
+                      className="flex-1 py-2 rounded-lg text-sm font-medium border flex items-center justify-center gap-2"
+                      style={{ borderColor: themeColors.danger + "40", backgroundColor: themeColors.danger + "10", color: themeColors.danger }}>
+                      <FaTrash /> Delete
+                    </button>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-4">
-                {error && (
-                  <div
-                    className="p-2 rounded-lg text-xs border"
-                    style={{
-                      backgroundColor: themeColors.danger + "15",
-                      borderColor: themeColors.danger + "50",
-                      color: themeColors.danger,
-                    }}
-                  >
-                    {error}
-                  </div>
-                )}
-
-                {/* Image picker - nicer design */}
-                <div>
-                  <label
-                    htmlFor="sliderImage"
-                    className="block mb-1 text-sm font-medium"
-                    style={{ color: themeColors.text }}
-                  >
-                    Slider Image <span className="text-red-500">*</span>
-                  </label>
-
-                  <label
-                    className="w-full flex flex-col items-center justify-center px-4 py-6 border-2 border-dashed rounded-xl cursor-pointer text-sm transition hover:border-opacity-80"
-                    style={{
-                      borderColor: themeColors.border,
-                      backgroundColor: themeColors.background + "40",
-                      color: themeColors.text,
-                    }}
-                  >
-                    <input
-                      id="sliderImage"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <FaImages className="text-xl mb-2 opacity-80" />
-                    <span className="font-medium">
-                      {imageFile
-                        ? "Change selected image"
-                        : "Click to choose image"}
-                    </span>
-                    <span className="text-xs opacity-70 mt-1">
-                      Recommended: wide banner image (JPG/PNG)
-                    </span>
-                  </label>
-
-                  {(imagePreview || editing?.image?.url) && (
-                    <div className="mt-3">
-                      <p
-                        className="text-xs mb-1 opacity-70"
-                        style={{ color: themeColors.text }}
-                      >
-                        Preview:
-                      </p>
-                      <img
-                        src={imagePreview || editing?.image?.url}
-                        alt="Preview"
-                        className="w-full max-h-48 object-cover rounded-xl border"
-                        style={{ borderColor: themeColors.border }}
-                      />
-                      {editing && !imageFile && (
-                        <p
-                          className="text-xs mt-1 opacity-70"
-                          style={{ color: themeColors.text }}
-                        >
-                          Uploading a new image will replace the existing
-                          one.
-                        </p>
-                      )}
+              {/* ── ADD / EDIT mode ── */}
+              {(modal.mode === "add" || modal.mode === "edit") && (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {error && (
+                    <div className="p-2 rounded-lg text-xs border"
+                      style={{ backgroundColor: themeColors.danger + "15", borderColor: themeColors.danger + "50", color: themeColors.danger }}>
+                      {error}
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex items-center gap-2 justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsModalOpen(false);
-                    resetForm();
-                  }}
-                  disabled={saving}
-                  className="px-3 py-2 rounded-lg text-sm border disabled:opacity-50"
-                  style={{
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border,
-                    color: themeColors.text,
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving || !isLoggedIn}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: themeColors.primary,
-                    color: themeColors.onPrimary,
-                  }}
-                >
-                  {saving
-                    ? editing
-                      ? "Saving..."
-                      : "Creating..."
-                    : editing
-                    ? "Save Changes"
-                    : "Create Slider"}
-                </button>
-              </div>
-            </form>
+                  {/* Image Upload */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2" style={{ color: themeColors.text }}>
+                      Slider Image {modal.mode === "add" && <span className="text-red-500">*</span>}
+                    </label>
+
+                    <label
+                      className="w-full flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed rounded-xl cursor-pointer text-sm"
+                      style={{ borderColor: themeColors.border, backgroundColor: themeColors.background + "40", color: themeColors.text }}>
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) { setImageFile(file); setImagePreview(URL.createObjectURL(file)); }
+                        }} />
+                      <FaImages className="text-2xl opacity-50" />
+                      <span className="font-medium">{imageFile ? "Change Image" : "Click to choose image"}</span>
+                      <span className="text-xs opacity-60">Wide banner image (JPG/PNG/WebP)</span>
+                    </label>
+
+                    {imagePreview && (
+                      <div className="mt-3">
+                        <p className="text-xs opacity-60 mb-1" style={{ color: themeColors.text }}>Preview:</p>
+                        <img src={imagePreview} alt="preview"
+                          className="w-full object-cover rounded-xl border"
+                          style={{ borderColor: themeColors.border, maxHeight: "200px" }} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer buttons */}
+                  <div className="flex gap-2 justify-end pt-1">
+                    <button type="button" onClick={closeModal} disabled={saving}
+                      className="px-4 py-2 rounded-lg text-sm border disabled:opacity-50"
+                      style={{ borderColor: themeColors.border, color: themeColors.text }}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={saving}
+                      className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                      style={{ backgroundColor: themeColors.primary, color: themeColors.onPrimary }}>
+                      {saving ? "Saving..." : modal.mode === "add" ? "Add Slider" : "Save Changes"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}
