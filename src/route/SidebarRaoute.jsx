@@ -12,6 +12,7 @@ import {
   FaMoneyBillWave,
   FaUserCircle,
   FaPhotoVideo,
+  FaHammer,
 } from "react-icons/fa";
 
 // pages
@@ -33,6 +34,8 @@ const UserDetail   = lazy(() => import("../pages/UserDetail"));
 const PayMethods   = lazy(() => import("../pages/PayMethods"));
 const Profile      = lazy(() => import("../pages/Profile"));
 const Gallery      = lazy(() => import("../pages/Gallery"));
+const RecentSideWorks   = lazy(() => import("../pages/RecentSideWorks"));
+const RecentSideWorkForm = lazy(() => import("../pages/RecentSideWorkForm"));
 
 const routes = [
   { path: "/dashboard",          component: Dashboard,     name: "Dashboard",      icon: FaTachometerAlt },
@@ -53,6 +56,10 @@ const routes = [
   { path: "/blogs/:id",          component: BlogForm,      name: "Blog Detail",    icon: FaBlog, hide: true },
   { path: "/sliders",            component: Sliders,       name: "Sliders",        icon: FaImages },
   { path: "/gallery",            component: Gallery,       name: "Gallery",        icon: FaPhotoVideo },
+  { path: "/recent-side-works",       component: RecentSideWorks,    name: "Recent Side Works", icon: FaHammer },
+  { path: "/recent-side-works/add",   component: RecentSideWorkForm, name: "Add Side Work",     icon: FaHammer, hide: true },
+  { path: "/recent-side-works/edit/:id", component: RecentSideWorkForm, name: "Edit Side Work", icon: FaHammer, hide: true },
+  { path: "/recent-side-works/:id",   component: RecentSideWorkForm, name: "View Side Work",    icon: FaHammer, hide: true },
   { path: "/review-videos",      component: ReviewVideos,  name: "Review Videos",  icon: FaVideo },
   { path: "/pay-methods",        component: PayMethods,    name: "Pay Methods",    icon: FaMoneyBillWave },
   { path: "/profile",            component: Profile,       name: "Profile",        icon: FaUserCircle },
