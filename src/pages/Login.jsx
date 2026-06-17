@@ -85,9 +85,9 @@ const Login = () => {
       >
         {/* Branding Section */}
         <div className="text-center mb-8">
-          <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center bg-white rounded-2xl shadow-md overflow-hidden">
+          <div className="w-24 h-24 mx-auto mb-4 flex items-center justify-center overflow-hidden">
             <img
-              src="/logo.png"
+              src="/logo.webp"
               alt="Vishwakarma Welding Logo"
               className="w-full h-full object-contain"
             />

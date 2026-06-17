@@ -108,7 +108,7 @@ const Sidebar = ({
           <div className="flex items-center">
             <div className="w-14 h-14 rounded-full flex items-center justify-center mr-4 bg-white overflow-hidden">
               <img
-                src="/logo.png"
+                src="/logo.webp"
                 alt="Vishwakarma Welding Logo"
                 className="w-full h-full object-contain"
               />
