@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { getAllUsers, adminToggleUserStatus } from "../apis/user";
-import { FaUsers, FaSyncAlt, FaEye, FaEdit, FaToggleOn, FaToggleOff, FaPlus } from "react-icons/fa";
+import { FaUsers, FaSyncAlt, FaEye, FaEdit, FaPlus, FaToggleOn, FaToggleOff } from "react-icons/fa";
 import Table from "../components/Table";
 import TableCard from "../components/TableCard";
 
@@ -23,6 +23,9 @@ export default function Users() {
   const [search, setSearch]     = useState("");
   const [isActive, setIsActive] = useState("");
 
+  // Track which user IDs are currently being toggled to show loader
+  const [togglingIds, setTogglingIds] = useState([]);
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true); setError("");
@@ -40,11 +43,16 @@ export default function Users() {
 
   // ── toggle ─────────────────────────────────────────────────
   const handleToggle = async (user) => {
+    // Add user ID to loading list
+    setTogglingIds((prev) => [...prev, user._id]);
     try {
       await adminToggleUserStatus(user._id);
-      fetchUsers();
+      await fetchUsers();
     } catch (e) {
       setError(e?.response?.data?.message || "Failed to toggle status.");
+    } finally {
+      // Remove from loading list irrespective of success/failure
+      setTogglingIds((prev) => prev.filter((id) => id !== user._id));
     }
   };
 
@@ -82,7 +90,19 @@ export default function Users() {
   const tableActions = [
     { label: "View",   icon: <FaEye />,      onClick: (row) => navigate(`/users/${row._id}`),       color: themeColors.primary },
     { label: "Edit",   icon: <FaEdit />,     onClick: (row) => navigate(`/users/edit/${row._id}`),  color: themeColors.primary },
-    { label: "Toggle", icon: <FaToggleOn />, onClick: handleToggle, color: "#f59e0b" },
+    {
+      label: "",
+      // Render icon with spinner or toggle state
+      icon: (row) => (
+        togglingIds.includes(row._id) ? (
+          <FaSyncAlt className="animate-spin" />
+        ) : (
+          row.isActive ? <FaToggleOn /> : <FaToggleOff />
+        )
+      ),
+      onClick: (row) => handleToggle(row),
+      color: "#f59e0b",
+    },
   ];
 
   const tableFilters = [

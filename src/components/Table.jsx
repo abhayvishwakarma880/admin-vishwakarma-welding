@@ -300,7 +300,7 @@ export default function Table({
                 <tr key={row[rowKey] ?? idx} className="hover:bg-black/5 transition-colors">
                   {actions.length > 0 && (
                     <td className="px-4 py-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5">
                         {actions.map((action, i) => {
                           if (action.hide?.(row)) return null;
                           return (
@@ -313,8 +313,11 @@ export default function Table({
                                 borderColor: (action.color || themeColors.primary) + "40",
                                 backgroundColor: (action.color || themeColors.primary) + "10",
                               }}>
-                              {action.icon && <span className="text-xs">{action.icon}</span>}
-                              {action.label}
+                              {typeof action.icon === "function" ? (
+              action.icon(row)
+            ) : (
+              action.icon
+            )}
                             </button>
                           );
                         })}

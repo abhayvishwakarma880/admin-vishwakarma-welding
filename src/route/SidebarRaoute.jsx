@@ -25,6 +25,7 @@ const EditProduct  = lazy(() => import("../pages/EditProduct"));
 const ProductDetail = lazy(() => import("../pages/ProductDetail"));
 const Offers       = lazy(() => import("../pages/Offers"));
 const Orders       = lazy(() => import("../pages/Orders"));
+const OrderView    = lazy(() => import("../pages/OrderView"));
 const Contacts     = lazy(() => import("../pages/Contacts"));
 const Sliders      = lazy(() => import("../pages/Sliders"));
 const ReviewVideos = lazy(() => import("../pages/ReviewVideos"));
@@ -52,6 +53,7 @@ const routes = [
   { path: "/products/edit/:id",   component: EditProduct,   name: "Edit Product",   icon: FaBox, hide: true },
   { path: "/products/:id",        component: ProductDetail, name: "Product Detail", icon: FaBox, hide: true },
   { path: "/orders",             component: Orders,        name: "Orders",         icon: FaShoppingCart },
+  { path: "/orders/:id",         component: OrderView,     name: "Order Detail",   icon: FaShoppingCart, hide: true },
   { path: "/contacts",           component: Contacts,      name: "Contacts",       icon: FaAddressBook },
   { path: "/blogs",              component: Blogs,         name: "Blogs",          icon: FaBlog },
   { path: "/blogs/add",          component: BlogForm,      name: "Add Blog",       icon: FaBlog, hide: true },
