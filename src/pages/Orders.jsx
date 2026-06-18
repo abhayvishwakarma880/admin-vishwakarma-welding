@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { getOrders } from "../apis/orders";
-import { FaShoppingCart, FaSyncAlt, FaEye } from "react-icons/fa";
+import { FaShoppingCart, FaSyncAlt, FaEye, FaEdit } from "react-icons/fa";
 import Table from "../components/Table";
 import TableCard from "../components/TableCard";
 
@@ -40,7 +40,8 @@ export default function Orders() {
   const filteredOrders = orders.filter(o => 
     o.name?.toLowerCase().includes(search.toLowerCase()) || 
     o.orderFor?.toLowerCase().includes(search.toLowerCase()) ||
-    o.email?.toLowerCase().includes(search.toLowerCase())
+    o.email?.toLowerCase().includes(search.toLowerCase()) ||
+    o.mobile?.toLowerCase().includes(search.toLowerCase())
   );
   
   const paginatedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
@@ -50,6 +51,7 @@ export default function Orders() {
   const tableColumns = [
     { key: "_id", label: "Order ID", render: (row) => <span className="font-mono text-xs">#{row._id.slice(-6)}</span> },
     { key: "name", label: "Customer Name", render: (row) => <span className="font-semibold">{row.name}</span> },
+    { key: "mobile", label: "Mobile", render: (row) => row.mobile || "-" },
     { key: "email", label: "Email", render: (row) => row.email || "-" },
     { key: "orderFor", label: "Order For", render: (row) => <span className="px-2 py-1 rounded-md text-xs font-bold" style={{ backgroundColor: themeColors.primary + "20", color: themeColors.primary }}>{row.orderFor}</span> },
     { key: "city", label: "City", render: (row) => row.city || "-" },
@@ -57,7 +59,8 @@ export default function Orders() {
   ];
 
   const tableActions = [
-    { label: "", icon: <FaEye />, onClick: (row) => navigate(`/orders/${row._id}`), color: themeColors.primary },
+    { label: "", icon: <FaEye />, onClick: (row) => navigate(`/orders/${row._id}?mode=view`), color: themeColors.primary },
+    { label: "", icon: <FaEdit />, onClick: (row) => navigate(`/orders/${row._id}?mode=edit`), color: "#10b981" },
   ];
 
   const sharedProps = {
@@ -71,7 +74,7 @@ export default function Orders() {
     onPageChange: setPage,
     onLimitChange: (l) => { setLimit(l); setPage(1); },
     onSearchChange: (s) => { setSearch(s); setPage(1); },
-    searchPlaceholder: "Search by name, email, order for...",
+    searchPlaceholder: "Search by name, email, mobile, order for...",
   };
 
   return (
